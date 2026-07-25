@@ -98,7 +98,7 @@ JS_RUNTIMES = {"node": {}}
 # bypass it entirely — no cookies or proxy needed. yt-dlp tries these in order
 # and uses the first that returns a playable response. Override with the
 # YT_PLAYER_CLIENTS env var (comma-separated) if YouTube shifts its gating.
-_DEFAULT_PLAYER_CLIENTS = "android,web_embedded,mweb,ios,tv,web"
+_DEFAULT_PLAYER_CLIENTS = "web_embedded,android,mweb,ios,tv,web"
 
 
 def _with_js_runtime(opts: dict) -> dict:
