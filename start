@@ -10,8 +10,7 @@ export PATH="/app/bin:$HOME/.deno/bin:$PATH"
 if ! command -v ffmpeg &>/dev/null; then
     if [ ! -f "/app/bin/ffmpeg" ]; then
         echo "ffmpeg missing from PATH, downloading static binary..."
-        curl -sL https://mm.jqu.de/ffmpeg-official-static/ffmpeg-release-amd64-static.tar.xz | tar -xJ --strip-components=1 -C /app/bin --wildcards '*ffmpeg' 2>/dev/null || true
-        chmod +x /app/bin/ffmpeg 2>/dev/null || true
+        curl -sSL "https://github.com/eugeny/static-ffmpeg-binaries/raw/master/ffmpeg-linux-x64" -o /app/bin/ffmpeg && chmod +x /app/bin/ffmpeg || echo "Failed to download ffmpeg"
     fi
 fi
 
@@ -19,10 +18,10 @@ fi
 if ! command -v deno &>/dev/null; then
     if [ ! -f "/app/bin/deno" ]; then
         echo "deno missing from PATH, downloading binary..."
-        curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/app/.deno sh &>/dev/null || true
+        curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/app/.deno sh || echo "Failed to install deno"
         if [ -f "/app/.deno/bin/deno" ]; then
-            cp /app/.deno/bin/deno /app/bin/deno 2>/dev/null || true
-            chmod +x /app/bin/deno 2>/dev/null || true
+            cp /app/.deno/bin/deno /app/bin/deno
+            chmod +x /app/bin/deno
         fi
     fi
 fi
