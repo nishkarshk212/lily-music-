@@ -1,1 +1,16 @@
-uv run python3 -m ishu
+#!/usr/bin/env bash
+# PYTHONPATH=/app guarantees that Python finds /app/ishu BEFORE
+# anything installed in .venv/lib/.../site-packages. Without this,
+# any old/cached package in the venv could shadow our code and
+# produce import errors or startup crashes.
+export PYTHONPATH=/app:${PYTHONPATH}
+
+# Belt-and-suspenders: clean up any legacy shadow packages in site-packages
+find /app/.venv/lib -maxdepth 4 -type d -name "ishu" 2>/dev/null \
+  | grep site-packages | xargs rm -rf 2>/dev/null || true
+find /app/.venv/lib -maxdepth 4 -name "lily_3_0*" 2>/dev/null \
+  | xargs rm -rf 2>/dev/null || true
+find /app/.venv/lib -maxdepth 4 -name "anonxmusic*" 2>/dev/null \
+  | xargs rm -rf 2>/dev/null || true
+
+exec /app/.venv/bin/python3 -m ishu

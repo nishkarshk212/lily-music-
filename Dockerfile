@@ -33,11 +33,12 @@ RUN deno --version
 RUN curl -Ls https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
-# Copy dependency spec and install Python deps first (layer caching)
-COPY pyproject.toml ./
-RUN uv sync --no-dev
+# Copy dependency spec + lockfile and install Python deps first (layer caching)
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-dev --frozen
 
 # Copy the rest of the project
+ARG CACHEBUST=1
 COPY . .
 
 # Create necessary runtime directories
