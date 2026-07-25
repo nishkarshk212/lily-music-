@@ -13,4 +13,8 @@ find /app/.venv/lib -maxdepth 4 -name "lily_3_0*" 2>/dev/null \
 find /app/.venv/lib -maxdepth 4 -name "anonxmusic*" 2>/dev/null \
   | xargs rm -rf 2>/dev/null || true
 
-exec /app/.venv/bin/python3 -m ishu
+if [ -f "/app/.venv/bin/python3" ]; then
+    exec /app/.venv/bin/python3 -m ishu
+else
+    exec python3 -m ishu
+fi
