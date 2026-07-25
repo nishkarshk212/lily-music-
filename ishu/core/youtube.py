@@ -103,16 +103,18 @@ _DEFAULT_PLAYER_CLIENTS = "web_embedded,android,mweb,ios,tv,web"
 
 def _with_js_runtime(opts: dict) -> dict:
     """Return a copy of yt-dlp opts with the node runtime, player-client
-    bypass, and optional proxy.
-
-    - Player clients (tv/ios/android/...) dodge the web bot-check with no
-      external dependency. Tune with the YT_PLAYER_CLIENTS env var.
-    - Set the YTDLP_PROXY env var (e.g. http://user:pass@host:port or
-      socks5://host:port) to route every yt-dlp request through a clean IP —
-      the reliable fix when the whole server IP is bot-flagged.
+    bypass, browser headers, and optional proxy.
     """
     out = dict(opts)
     out["js_runtimes"] = JS_RUNTIMES
+
+    # Attach browser headers required by web_embedded client
+    headers = dict(out.get("http_headers") or {})
+    if "Referer" not in headers:
+        headers["Referer"] = "https://www.youtube.com/"
+    if "User-Agent" not in headers:
+        headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    out["http_headers"] = headers
 
     clients = [
         c.strip()
