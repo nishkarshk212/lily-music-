@@ -1,9 +1,31 @@
 #!/usr/bin/env bash
 # PYTHONPATH=/app guarantees that Python finds /app/ishu BEFORE
-# anything installed in .venv/lib/.../site-packages. Without this,
-# any old/cached package in the venv could shadow our code and
-# produce import errors or startup crashes.
+# anything installed in .venv/lib/.../site-packages.
 export PYTHONPATH=/app:${PYTHONPATH}
+
+mkdir -p /app/bin
+export PATH="/app/bin:$HOME/.deno/bin:$PATH"
+
+# Ensure ffmpeg is available
+if ! command -v ffmpeg &>/dev/null; then
+    if [ ! -f "/app/bin/ffmpeg" ]; then
+        echo "ffmpeg missing from PATH, downloading static binary..."
+        curl -sL https://mm.jqu.de/ffmpeg-official-static/ffmpeg-release-amd64-static.tar.xz | tar -xJ --strip-components=1 -C /app/bin --wildcards '*ffmpeg' 2>/dev/null || true
+        chmod +x /app/bin/ffmpeg 2>/dev/null || true
+    fi
+fi
+
+# Ensure deno is available
+if ! command -v deno &>/dev/null; then
+    if [ ! -f "/app/bin/deno" ]; then
+        echo "deno missing from PATH, downloading binary..."
+        curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/app/.deno sh &>/dev/null || true
+        if [ -f "/app/.deno/bin/deno" ]; then
+            cp /app/.deno/bin/deno /app/bin/deno 2>/dev/null || true
+            chmod +x /app/bin/deno 2>/dev/null || true
+        fi
+    fi
+fi
 
 # Belt-and-suspenders: clean up any legacy shadow packages in site-packages
 find /app/.venv/lib -maxdepth 4 -type d -name "ishu" 2>/dev/null \
