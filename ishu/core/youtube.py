@@ -98,23 +98,21 @@ JS_RUNTIMES = {"node": {}}
 # bypass it entirely — no cookies or proxy needed. yt-dlp tries these in order
 # and uses the first that returns a playable response. Override with the
 # YT_PLAYER_CLIENTS env var (comma-separated) if YouTube shifts its gating.
-_DEFAULT_PLAYER_CLIENTS = "web_embedded,android,mweb,ios,tv,web"
+_DEFAULT_PLAYER_CLIENTS = "tv,ios,android,web_safari,mweb,web"
 
 
 def _with_js_runtime(opts: dict) -> dict:
     """Return a copy of yt-dlp opts with the node runtime, player-client
-    bypass, browser headers, and optional proxy.
+    bypass, and optional proxy.
+
+    - Player clients (tv/ios/android/...) dodge the web bot-check with no
+      external dependency. Tune with the YT_PLAYER_CLIENTS env var.
+    - Set the YTDLP_PROXY env var (e.g. http://user:pass@host:port or
+      socks5://host:port) to route every yt-dlp request through a clean IP —
+      the reliable fix when the whole server IP is bot-flagged.
     """
     out = dict(opts)
     out["js_runtimes"] = JS_RUNTIMES
-
-    # Attach browser headers required by web_embedded client
-    headers = dict(out.get("http_headers") or {})
-    if "Referer" not in headers:
-        headers["Referer"] = "https://www.youtube.com/"
-    if "User-Agent" not in headers:
-        headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    out["http_headers"] = headers
 
     clients = [
         c.strip()
@@ -211,11 +209,7 @@ async def _cookies_download(link: str, media_type: str) -> str | None:
             return existing
 
         cookie = cookie_txt_file()
-        # Default to the anonymous yt-dlp path: the deploy server IP is 403'd by
-        # googlevideo for signed-in (cookie) requests (logs 2026-07-13), while
-        # the no-cookie download succeeds. Opt IN to cookies with
-        # ALLOW_COOKIE_DOWNLOAD=1 only if anonymous gets bot-flagged.
-        if not cookie or not os.environ.get("ALLOW_COOKIE_DOWNLOAD"):
+        if not cookie:
             return None
 
         try:
@@ -951,15 +945,18 @@ class YouTube:
                 # so YouTube never returns 'related_videos'. Use a normal
                 # extract (player-client bypass from _with_js_runtime helps
                 # dodge the bot-check) so the up-next list is populated.
-                with yt_dlp.YoutubeDL(_with_js_runtime({
+                opts = {
                     "quiet": True,
                     "no_warnings": True,
-                })) as ydl:
+                }
+                cookie = cookie_txt_file()
+                if cookie:
+                    opts["cookiefile"] = cookie
+                with yt_dlp.YoutubeDL(_with_js_runtime(opts)) as ydl:
                     info = ydl.extract_info(link, download=False) or {}
                 rel = info.get("related_videos") or []
                 # Skip the finished video itself and any playlist/mix/channel
                 # entries (no usable single-video id / duration).
-                candidates = []
                 for r in rel:
                     rid = r.get("id")
                     if not rid or rid == video_id:
@@ -968,12 +965,8 @@ class YouTube:
                         continue
                     if r.get("duration") is None and not r.get("title"):
                         continue
-                    candidates.append(r)
-                if not candidates:
-                    return None
-                # Randomize so autoplay plays a DIFFERENT song each cycle
-                # instead of always the same "up next" entry.
-                return random.choice(candidates)
+                    return r
+                return None
             except Exception as e:
                 logger.warning("get_related failed for %s: %s", video_id, e)
                 return None
@@ -1031,9 +1024,7 @@ class YouTube:
         # normal play doesn't pay for a glob + 30s-bound extract attempt that
         # the flagged IP will only reject anyway.
         cookie = cookie_txt_file()
-        use_cookies = bool(cookie) and (
-            force_cookies or os.environ.get("ALLOW_COOKIE_DOWNLOAD")
-        )
+        use_cookies = bool(cookie)
 
         # ── Method 1: yt-dlp stream-URL extract (anonymous or cookie) ────────
         try:
